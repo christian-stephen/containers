@@ -1,7 +1,7 @@
 # Copyright VMware, Inc.
 # SPDX-License-Identifier: APACHE-2.0
 
-FROM docker.io/bitnami/minideb:bullseye
+FROM debian:11-slim
 
 ARG EXTRA_LOCALES
 ARG TARGETARCH
