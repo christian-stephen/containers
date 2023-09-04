@@ -1,6 +1,53 @@
 # Copyright VMware, Inc.
 # SPDX-License-Identifier: APACHE-2.0
 
+FROM buildpack-deps:bullseye as build
+
+COPY prebuildfs /
+
+ENV POSTGRESQL_VERSION 12.16
+ENV POSTGIS_VERSION 3.2.4
+
+# Install PostgreSQL
+RUN install_packages clang dirmngr gosu gnupg libclang-dev libicu-dev libipc-run-perl libkrb5-dev libldap2-dev liblz4-dev locales libpam-dev libperl-dev libpython3-dev libreadline-dev libssl-dev libxml2-dev libxslt1-dev llvm llvm-dev postgresql-server-dev-all python3-dev tcl-dev uuid-dev
+RUN curl -sSL "https://ftp.postgresql.org/pub/source/v${POSTGRESQL_VERSION}/postgresql-${POSTGRESQL_VERSION}.tar.gz" | tar -xz && \
+	cd "postgresql-${POSTGRESQL_VERSION}" && \
+	./configure \
+		--prefix=/opt/bitnami/postgresql \
+		--enable-integer-datetimes \
+		--enable-thread-safety \
+		--enable-tap-tests \
+		--with-uuid=e2fs \
+		--with-gnu-ld \
+		--with-pgport=5432 \
+		--with-system-tzdata=/usr/share/zoneinfo \
+		--with-includes=/usr/local/include \
+		--with-libraries=/usr/local/lib \
+		--with-krb5 \
+		--with-gssapi \
+		--with-ldap \
+		--with-pam \
+		--with-tcl \
+		--with-perl \
+		--with-python \
+		--with-openssl \
+		--with-libxml \
+		--with-libxslt \
+		--with-icu \
+		--with-llvm \
+		--with-lz4 && \
+	make -j $(nproc) && \
+	make install
+# Install PostGIS
+RUN install_packages clang default-libmysqlclient-dev libclang-dev llvm llvm-dev libgdal-dev libgeos-dev libjson-c-dev libproj-dev libprotobuf-c-dev libxml2-dev protobuf-c-compiler && \
+	curl -sSL "https://download.osgeo.org/postgis/source/postgis-${POSTGIS_VERSION}.tar.gz" | tar -xz && \
+	cd "postgis-${POSTGIS_VERSION}" && \
+	./configure && \
+	make -j $(nproc) && \
+	make install && \
+	mkdir -p /docker-entrypoint-initdb.d && \
+	echo "CREATE EXTENSION postgis;" >/docker-entrypoint-initdb.d/postgis.sql
+
 FROM debian:11-slim
 
 ARG EXTRA_LOCALES
@@ -23,22 +70,11 @@ ENV HOME="/" \
     OS_NAME="linux"
 
 COPY prebuildfs /
+COPY --from=build /opt/bitnami/postgresql /opt/bitnami/postgresql
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # Install required system packages and dependencies
 RUN install_packages ca-certificates curl libbsd0 libbz2-1.0 libedit2 libffi7 libgcc-s1 libgmp10 libgnutls30 libhogweed6 libicu67 libidn2-0 libldap-2.4-2 liblz4-1 liblzma5 libmd0 libncurses6 libnettle8 libp11-kit0 libpcre3 libreadline8 libsasl2-2 libsqlite3-0 libssl1.1 libstdc++6 libtasn1-6 libtinfo6 libunistring2 libuuid1 libxml2 libxslt1.1 libzstd1 locales procps zlib1g
-RUN mkdir -p /tmp/bitnami/pkg/cache/ && cd /tmp/bitnami/pkg/cache/ && \
-    COMPONENTS=( \
-      "postgresql-12.16.0-1-linux-${OS_ARCH}-debian-11" \
-    ) && \
-    for COMPONENT in "${COMPONENTS[@]}"; do \
-      if [ ! -f "${COMPONENT}.tar.gz" ]; then \
-        curl -SsLf "https://downloads.bitnami.com/files/stacksmith/${COMPONENT}.tar.gz" -O ; \
-        curl -SsLf "https://downloads.bitnami.com/files/stacksmith/${COMPONENT}.tar.gz.sha256" -O ; \
-      fi && \
-      sha256sum -c "${COMPONENT}.tar.gz.sha256" && \
-      tar -zxf "${COMPONENT}.tar.gz" -C /opt/bitnami --strip-components=2 --no-same-owner --wildcards '*/files' && \
-      rm -rf "${COMPONENT}".tar.gz{,.sha256} ; \
-    done
+RUN mkdir -p /tmp/bitnami/pkg/cache/ && cd /tmp/bitnami/pkg/cache/
 RUN apt-get autoremove --purge -y curl && \
     apt-get update && apt-get upgrade -y && \
     apt-get clean && rm -rf /var/lib/apt/lists /var/cache/apt/archives
