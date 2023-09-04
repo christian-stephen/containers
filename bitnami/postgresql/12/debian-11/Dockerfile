@@ -6,6 +6,7 @@ FROM buildpack-deps:bullseye as build
 COPY prebuildfs /
 
 ENV POSTGRESQL_VERSION 12.16
+ENV POSTGRESQL_BASE_DIR "/opt/bitnami/postgresql"
 ENV POSTGIS_VERSION 3.2.4
 
 # Install PostgreSQL
@@ -13,7 +14,7 @@ RUN install_packages clang dirmngr gosu gnupg libclang-dev libicu-dev libipc-run
 RUN curl -sSL "https://ftp.postgresql.org/pub/source/v${POSTGRESQL_VERSION}/postgresql-${POSTGRESQL_VERSION}.tar.gz" | tar -xz && \
 	cd "postgresql-${POSTGRESQL_VERSION}" && \
 	./configure \
-		--prefix=/opt/bitnami/postgresql \
+		--prefix="${POSTGRESQL_BASE_DIR}" \
 		--enable-integer-datetimes \
 		--enable-thread-safety \
 		--enable-tap-tests \
@@ -39,10 +40,13 @@ RUN curl -sSL "https://ftp.postgresql.org/pub/source/v${POSTGRESQL_VERSION}/post
 	make -j $(nproc) && \
 	make install
 # Install PostGIS
-RUN install_packages clang default-libmysqlclient-dev libclang-dev llvm llvm-dev libgdal-dev libgeos-dev libjson-c-dev libproj-dev libprotobuf-c-dev libxml2-dev protobuf-c-compiler && \
-	curl -sSL "https://download.osgeo.org/postgis/source/postgis-${POSTGIS_VERSION}.tar.gz" | tar -xz && \
+RUN install_packages clang default-libmysqlclient-dev libclang-dev llvm llvm-dev libgdal-dev libgeos-dev libjson-c-dev libproj-dev libprotobuf-c-dev libxml2-dev protobuf-c-compiler
+RUN	curl -sSL "https://download.osgeo.org/postgis/source/postgis-${POSTGIS_VERSION}.tar.gz" | tar -xz && \
 	cd "postgis-${POSTGIS_VERSION}" && \
-	./configure && \
+	./configure \
+	    --prefix="${POSTGRESQL_BASE_DIR}" \
+	    --with-pgconfig="${POSTGRESQL_BASE_DIR}/bin/pg_config" \
+	    --with-projdir="${POSTGRESQL_BASE_DIR}" && \
 	make -j $(nproc) && \
 	make install && \
 	mkdir -p /docker-entrypoint-initdb.d && \
@@ -94,6 +98,8 @@ ENV APP_VERSION="12.16.0" \
     LANGUAGE="en_US:en" \
     NSS_WRAPPER_LIB="/opt/bitnami/common/lib/libnss_wrapper.so" \
     PATH="/opt/bitnami/postgresql/bin:$PATH"
+
+RUN useradd -r -u 1001 -g root postgres
 
 VOLUME [ "/bitnami/postgresql", "/docker-entrypoint-initdb.d", "/docker-entrypoint-preinitdb.d" ]
 
