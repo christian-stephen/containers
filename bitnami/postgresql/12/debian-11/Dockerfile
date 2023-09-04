@@ -38,19 +38,21 @@ RUN curl -sSL "https://ftp.postgresql.org/pub/source/v${POSTGRESQL_VERSION}/post
 		--with-llvm \
 		--with-lz4 && \
 	make -j $(nproc) && \
-	make install
+	make install && \
+	make clean
 # Install PostGIS
 RUN install_packages clang default-libmysqlclient-dev libclang-dev llvm llvm-dev libgdal-dev libgeos-dev libjson-c-dev libproj-dev libprotobuf-c-dev libxml2-dev protobuf-c-compiler
 RUN	curl -sSL "https://download.osgeo.org/postgis/source/postgis-${POSTGIS_VERSION}.tar.gz" | tar -xz && \
 	cd "postgis-${POSTGIS_VERSION}" && \
 	./configure \
 	    --prefix="${POSTGRESQL_BASE_DIR}" \
-	    --with-pgconfig="${POSTGRESQL_BASE_DIR}/bin/pg_config" \
-	    --with-projdir="${POSTGRESQL_BASE_DIR}" && \
+	    --with-pgconfig="${POSTGRESQL_BASE_DIR}/bin/pg_config" && \
 	make -j $(nproc) && \
 	make install && \
-	mkdir -p /docker-entrypoint-initdb.d && \
-	echo "CREATE EXTENSION postgis;" >/docker-entrypoint-initdb.d/postgis.sql
+	make clean
+
+RUN install_packages binutils
+RUN find "${POSTGRESQL_BASE_DIR}" -type f -name '*.o' -o -perm /u=x,g=x,o=x -exec strip {} \; || true
 
 FROM debian:11-slim
 
@@ -78,6 +80,7 @@ COPY --from=build /opt/bitnami/postgresql /opt/bitnami/postgresql
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # Install required system packages and dependencies
 RUN install_packages ca-certificates curl libbsd0 libbz2-1.0 libedit2 libffi7 libgcc-s1 libgmp10 libgnutls30 libhogweed6 libicu67 libidn2-0 libldap-2.4-2 liblz4-1 liblzma5 libmd0 libncurses6 libnettle8 libp11-kit0 libpcre3 libreadline8 libsasl2-2 libsqlite3-0 libssl1.1 libstdc++6 libtasn1-6 libtinfo6 libunistring2 libuuid1 libxml2 libxslt1.1 libzstd1 locales procps zlib1g
+RUN install_packages libgeos-c1v5 libgdal28 libjson-c5 libproj19 libprotobuf-c1
 RUN mkdir -p /tmp/bitnami/pkg/cache/ && cd /tmp/bitnami/pkg/cache/
 RUN apt-get autoremove --purge -y curl && \
     apt-get update && apt-get upgrade -y && \
