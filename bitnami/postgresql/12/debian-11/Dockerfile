@@ -48,6 +48,46 @@ RUN curl -sSL "https://github.com/pgaudit/pgaudit/archive/${POSTGRESQL_PGAUDIT_V
     make -j $(nproc) USE_PGXS=1 && \
     make -j $(nproc) USE_PGXS=1 install
 
+# Install pgAutoFailover
+ENV POSTGRESQL_AUTOCTL_VERSION 2.0
+RUN curl -sSL "https://github.com/citusdata/pg_auto_failover/archive/v${POSTGRESQL_AUTOCTL_VERSION}.tar.gz" | tar -xz && \
+    cd pg_auto_failover-${POSTGRESQL_AUTOCTL_VERSION} && \
+    make -j $(nproc) && \
+    make -j $(nproc) install && \
+    make clean
+
+# Install pgBackRest
+ENV POSTGRESQL_PGBACKREST_VERSION 2.47
+RUN curl -sSL "https://github.com/pgbackrest/pgbackrest/archive/release/${POSTGRESQL_PGBACKREST_VERSION}.tar.gz" | tar -xz && \
+    cd pgbackrest-release-${POSTGRESQL_PGBACKREST_VERSION}/src && \
+    ./configure --prefix="${POSTGRESQL_BASE_DIR}" && \
+    make -j $(nproc) && \
+    make -j $(nproc) install
+
+ENV NSS_WRAPPER_VERSION 1.1.15
+RUN install_packages cmake
+RUN curl -sSL "https://ftp.samba.org/pub/cwrap/nss_wrapper-${NSS_WRAPPER_VERSION}.tar.gz" | tar -xz && \
+    mkdir -p nss_wrapper-${NSS_WRAPPER_VERSION}.tmp && \
+    cd nss_wrapper-${NSS_WRAPPER_VERSION}.tmp && \
+    cmake ../nss_wrapper-${NSS_WRAPPER_VERSION} -DCMAKE_INSTALL_PREFIX="${POSTGRESQL_BASE_DIR}" && \
+    make -j $(nproc) install && \
+    make clean
+
+# Install pg_partman
+ENV POSTGRESQL_PG_PARTMAN_VERSION 4.7.2
+RUN curl -sSL "https://github.com/pgpartman/pg_partman/archive/v${POSTGRESQL_PG_PARTMAN_VERSION}.tar.gz" | tar -xz && \
+	cd pg_partman-${POSTGRESQL_PG_PARTMAN_VERSION} && \
+	make -j $(nproc) NO_BGW=1 install && \
+	make clean
+
+# Install pg_cron
+ENV POSTGRESQL_PG_CRON_VERSION 1.6.0
+RUN curl -sSL "https://github.com/citusdata/pg_cron/archive/v${POSTGRESQL_PG_CRON_VERSION}.tar.gz" | tar -xz && \
+    cd pg_cron-${POSTGRESQL_PG_CRON_VERSION} && \
+    make -j $(nproc) && \
+    make -j $(nproc) install && \
+    make clean
+
 # Strip binaries and object files
 RUN install_packages binutils
 RUN find "${POSTGRESQL_BASE_DIR}" -type f -name '*.o' -o -perm /u=x,g=x,o=x -exec strip {} \; || true
