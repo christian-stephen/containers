@@ -1,6 +1,7 @@
 #!/bin/bash
 # Copyright VMware, Inc.
 # SPDX-License-Identifier: APACHE-2.0
+# Modifications copyright (C) 2023 Circle Internet Services, Inc.
 #
 # Bitnami PostgreSQL library
 
@@ -1018,6 +1019,7 @@ postgresql_remove_pghba_lines() {
 
 # Copyright VMware, Inc.
 # SPDX-License-Identifier: APACHE-2.0
+# Modifications copyright (C) 2023 Circle Internet Services, Inc.
 
 # shellcheck disable=SC2148
 

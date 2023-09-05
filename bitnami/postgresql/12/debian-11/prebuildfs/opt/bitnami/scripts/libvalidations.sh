@@ -1,6 +1,7 @@
 #!/bin/bash
 # Copyright VMware, Inc.
 # SPDX-License-Identifier: APACHE-2.0
+# Modifications copyright (C) 2023 Circle Internet Services, Inc.
 #
 # Validation functions library
 
